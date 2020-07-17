@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "me.geek.tom.teleportals.mixin.mixins",
+  "compatibilityLevel": "JAVA_8",
+  "mixins": [
+  ],
+  "client": [
+    "MixinFramebuffer",
+    "MixinGameRenderer",
+    "MixinWorldRenderer",
+    "MixinDebugHud",
+    "MixinCamera"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
