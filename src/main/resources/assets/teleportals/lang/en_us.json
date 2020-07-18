@@ -1,4 +1,6 @@
 {
   "block.teleportals.teleporter": "Teleporter",
   "itemGroup.teleportals.teleportals": "Teleportals"
+,
+  "teleportals.teleporter.notarget": "No target configured!"
 }

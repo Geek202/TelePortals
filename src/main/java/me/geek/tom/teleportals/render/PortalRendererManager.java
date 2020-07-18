@@ -28,7 +28,7 @@ import java.util.function.Consumer;
 import static org.lwjgl.opengl.GL11.*;
 
 @Environment(EnvType.CLIENT)
-public class StencilPortalRenderer {
+public class PortalRendererManager {
 
     public void initializeRendering() {
         // No portal in portal pls.
@@ -64,9 +64,6 @@ public class StencilPortalRenderer {
 
         TelePortalsClient.portalsRenderedLastFrame = 0;
 
-        Camera moddedCamera = ((IPortalCamera)camera).teleportals_cloneCamera();
-        ((IPortalCamera)moddedCamera).teleportals_callMoveBy(0, 10, 0);
-
         // State flag to render the portals differently in our special case.
         TelePortalsClient.isCurrentlyRenderingPortals = true;
         synchronized (worldRenderer.noCullingBlockEntities) {
@@ -74,8 +71,21 @@ public class StencilPortalRenderer {
             Set<BlockEntity> cloned = Sets.newConcurrentHashSet(worldRenderer.noCullingBlockEntities);
             Iterator<BlockEntity> noCullingBlockEntities = cloned.iterator();
             while (noCullingBlockEntities.hasNext()) {
-                BlockEntity te = noCullingBlockEntities.next();
-                renderPortal((TeleporterBlockEntity) te, matrices, immediate,
+                BlockEntity be = noCullingBlockEntities.next();
+                if (!(be instanceof TeleporterBlockEntity)) continue;
+                TeleporterBlockEntity te = (TeleporterBlockEntity) be;
+
+                if (!te.hasTarget()) continue;
+
+                BlockPos portalPos = te.getPos();
+                Vec3d portalToPlayer = camPos.subtract(new Vec3d(portalPos.getX(), portalPos.getY(), portalPos.getZ()));
+
+                Camera moddedCamera = ((IPortalCamera)camera).teleportals_cloneCamera();
+                IPortalCamera portalCam = (IPortalCamera) moddedCamera;
+                portalCam.teleportals_shiftToPosition(te.getTargetPos());
+                portalCam.teleportals_callMoveBy(portalToPlayer);
+
+                renderPortal(te, matrices, immediate,
                         camX, camY, camZ, tickDelta, limitTime, renderBlockOutline,
                         moddedCamera, gameRenderer, worldRenderer,
                         lightmapTextureManager, matrix4f, client.getProfiler());
@@ -209,7 +219,7 @@ public class StencilPortalRenderer {
         GL11.glStencilMask(0xFF);
     }
 
-    private static class RenderTypes extends RenderLayer {
+    public static class RenderTypes extends RenderLayer {
         // Why is this not a thing in vanilla?
         private static final WriteMaskState NO_DEPTH_NO_COLOUR = new WriteMaskState(false, false);
 

@@ -2,7 +2,7 @@ package me.geek.tom.teleportals;
 
 import me.geek.tom.teleportals.blocks.ModBlocks;
 import me.geek.tom.teleportals.blocks.teleporter.client.TeleporterRenderer;
-import me.geek.tom.teleportals.render.StencilPortalRenderer;
+import me.geek.tom.teleportals.render.PortalRendererManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -11,7 +11,7 @@ import net.fabricmc.fabric.api.client.rendereregistry.v1.BlockEntityRendererRegi
 @Environment(EnvType.CLIENT)
 public class TelePortalsClient implements ClientModInitializer {
 
-    public static StencilPortalRenderer RENDERER = new StencilPortalRenderer();
+    public static PortalRendererManager RENDERER = new PortalRendererManager();
 
     // Global flag used to prevent portal in portal and normal TESR rendering
     // of the teleporter.

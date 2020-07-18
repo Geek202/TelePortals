@@ -39,6 +39,8 @@ public abstract class MixinCamera implements IPortalCamera {
 
     @Shadow protected abstract void moveBy(double x, double y, double z);
 
+    @Shadow public abstract Vec3d getPos();
+
     @Override
     public Camera teleportals_cloneCamera() {
         Camera ret = new Camera();
@@ -63,5 +65,16 @@ public abstract class MixinCamera implements IPortalCamera {
     @Override
     public void teleportals_callMoveBy(double x, double y, double z) {
         this.moveBy(x, y, z);
+    }
+
+    @Override
+    public void teleportals_callMoveBy(Vec3d movement) {
+        this.teleportals_callMoveBy(movement.x, movement.y, movement.z);
+    }
+
+    @Override
+    public void teleportals_shiftToPosition(Vec3d target) {
+        Vec3d offset = target.subtract(pos);
+        this.teleportals_callMoveBy(offset.x, offset.y, offset.z);
     }
 }
