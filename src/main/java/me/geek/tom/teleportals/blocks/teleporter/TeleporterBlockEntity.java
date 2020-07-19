@@ -5,7 +5,6 @@ import net.fabricmc.fabric.api.block.entity.BlockEntityClientSerializable;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.entity.Entity;
-import net.minecraft.entity.player.PlayerEntity;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtHelper;
 import net.minecraft.util.Tickable;
@@ -13,15 +12,20 @@ import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 public class TeleporterBlockEntity extends BlockEntity implements Tickable, BlockEntityClientSerializable {
-    private Box teleportBox;
     private BlockPos target;
+
+    private Box trackingBox;
+    private Map<Entity, Float> trackedEntities;
 
     public TeleporterBlockEntity() {
         super(ModBlocks.TELEPORTER_TILE);
+        this.trackedEntities = new HashMap<>();
     }
 
     @Override
@@ -58,24 +62,18 @@ public class TeleporterBlockEntity extends BlockEntity implements Tickable, Bloc
 
     @Override
     public void tick() {
-        if (this.teleportBox == null) computeBox();
+        if (this.trackingBox == null) computeBox();
         if (this.target == null) return;
 
-        for (Entity e : this.findEntitiesToTeleport()) {
-            // Only teleport players on the client, in an attempt to make first person teleportation
-            // be smoother.
-            if (this.world.isClient && !(e instanceof PlayerEntity)) continue;
-            e.teleport(target.getX(), target.getY(), target.getZ());
-        }
+        updateTrackedEntitiesAndTeleport();
     }
 
     /**
-     * Initialises the box when the tile entity is created.
+     * Initialises the tracking box when the tile entity is first ticked.
      */
     private void computeBox() {
-        this.teleportBox = new Box(this.pos);
-        this.teleportBox = this.teleportBox.stretch(0, 1, 0);
-        this.teleportBox = this.teleportBox.expand(0d, 0d, -0.9d);
+        this.trackingBox = new Box(this.pos);
+        this.trackingBox = this.trackingBox.stretch(0, 1, 0);
     }
 
     /**
@@ -83,14 +81,57 @@ public class TeleporterBlockEntity extends BlockEntity implements Tickable, Bloc
      */
     private List<Entity> findEntitiesToTeleport() {
         // bc of naming, the null is ambiguous, and therefor must be cast.
-        List<Entity> teleportable = this.world.getEntities((Entity) null, this.teleportBox, entity -> true);
+        List<Entity> teleportable = this.world.getEntities((Entity) null, this.trackingBox, entity -> true);
         return teleportable.stream()
-                .filter(entity -> this.teleportBox.contains(entity.getPos()))
+                .filter(entity -> this.trackingBox.contains(entity.getPos()))
                 .collect(Collectors.toList());
+    }
+
+    private void updateTrackedEntitiesAndTeleport() {
+        List<Entity> nearbyEntities = findEntitiesToTeleport();
+        for (Entity entity : this.trackedEntities.keySet()) {
+            if (!nearbyEntities.contains(entity)) {
+                this.trackedEntities.remove(entity);
+            }
+        }
+
+        for (Entity entity : nearbyEntities) {
+            if (this.trackedEntities.containsKey(entity)) {
+                float prevDotProd = this.trackedEntities.get(entity);
+                Vec3d toEntityVector = this.getPositionVector().subtract(entity.getPos());
+                Vec3d toEntityNormalisedVector = toEntityVector.normalize();
+                float currentDotProd = (float) this.getForwardVector().dotProduct(toEntityNormalisedVector);
+                if ((prevDotProd < 0 && currentDotProd > 0)
+                        || (prevDotProd > 0 && currentDotProd < 0)) {
+                    this.teleportEntity(entity, toEntityVector);
+                    this.trackedEntities.remove(entity);
+                } else {
+                    this.trackedEntities.put(entity, currentDotProd);
+                }
+            } else {
+                Vec3d toEntityVector = this.getPositionVector().subtract(entity.getPos());
+                Vec3d toEntityNormalisedVector = toEntityVector.normalize();
+                float currentDotProd = (float) this.getForwardVector().dotProduct(toEntityNormalisedVector);
+                this.trackedEntities.put(entity, currentDotProd);
+            }
+        }
+    }
+
+    private void teleportEntity(Entity entity, Vec3d toEntityVector) {
+        Vec3d target = this.getTargetPos().add(toEntityVector);
+        entity.teleport(target.x, target.y, target.z);
+    }
+
+    private Vec3d getForwardVector() {
+        return new Vec3d(0d, 0d, 1d).normalize();
     }
 
     public Vec3d getTargetPos() {
         return new Vec3d(target.getX(), target.getY(), target.getZ());
+    }
+
+    public Vec3d getPositionVector() {
+        return new Vec3d(this.pos.getX() + 0.5d, this.pos.getY(), this.pos.getZ() + 0.5d);
     }
 
     public boolean hasTarget() {

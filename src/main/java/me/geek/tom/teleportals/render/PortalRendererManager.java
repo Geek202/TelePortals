@@ -101,7 +101,10 @@ public class PortalRendererManager {
                                 Camera camera, GameRenderer gameRenderer,
                                 LightmapTextureManager lightmapTextureManager,
                                 Matrix4f matrix4f) {
-        TelePortalsClient.RENDERER.setStencilMask(1);
+        // Only change stencil settings if we are not a recursive world draw.
+        if (!TelePortalsClient.isCurrentlyRenderingPortals)
+            TelePortalsClient.RENDERER.setStencilMask(1);
+
         worldRenderer.render(matrices, tickDelta, limitTime, renderBlockOutline, camera,
                 gameRenderer, lightmapTextureManager, matrix4f);
     }
@@ -145,6 +148,8 @@ public class PortalRendererManager {
     }
 
     public void completeRendering() {
+        if (TelePortalsClient.isCurrentlyRenderingPortals) return;
+
         // Clean up state, fixes issues with menus after loading a world.
         GL11.glDisable(GL_STENCIL_TEST);
     }
